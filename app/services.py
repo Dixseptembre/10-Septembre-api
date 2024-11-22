@@ -14,7 +14,7 @@ def process_file(file):
     for idx, employee in enumerate(employees):
         employee_data = {"name": employee}
         for _, row in df.iloc[2:].iterrows():
-            libelle = row[1]
+            libelle = row.iloc[1]
             base_s = clean_value(row.iloc[2 + idx * 3])
             salarial = clean_value(row.iloc[3 + idx * 3])
             patronal = clean_value(row.iloc[4 + idx * 3])
