@@ -15,9 +15,9 @@ def process_file(file):
         employee_data = {"name": employee}
         for _, row in df.iloc[2:].iterrows():
             libelle = row[1]
-            base_s = clean_value(row[2 + idx * 3])
-            salarial = clean_value(row[3 + idx * 3])
-            patronal = clean_value(row[4 + idx * 3])
+            base_s = float(row[2 + idx * 3]) if row[2 + idx * 3] == row[2 + idx * 3] else 0
+            salarial = float(row[3 + idx * 3]) if row[3 + idx * 3] == row[3 + idx * 3] else 0
+            patronal = float(row[4 + idx * 3]) if row[4 + idx * 3] == row[4 + idx * 3] else 0
 
             employee_data[libelle] = {
                 "Base S.": base_s,
