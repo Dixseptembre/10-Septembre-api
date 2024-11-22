@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, Flask
 import json
 from app.services import process_file
 
@@ -16,7 +16,7 @@ def process_endpoint():
 
         # Traitement du fichier
         result = process_file(file)
-        return main.response_class(
+        return Flask.response_class(
             response=json.dumps({"success": True, "data": result}, ensure_ascii=False, indent=4),
             status=200,
             mimetype='application/json'
