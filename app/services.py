@@ -26,5 +26,5 @@ def process_file(file):
                 "Patronal": patronal
             }
         result.append(employee_data)
-
+    result.pop()
     return result
