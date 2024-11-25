@@ -20,6 +20,7 @@ def process_file(file):
             patronal = clean_value(row.iloc[4 + idx * 3])
 
             employee_data[libelle] = {
+                "Libellé" : libelle,
                 "Base S.": base_s,
                 "Salarial": salarial,
                 "Patronal": patronal
