@@ -12,19 +12,20 @@ def process_file(file):
     result = []
 
     for idx, employee in enumerate(employees):
-        employee_data = {"name": employee}
+        employee_data = {"name": employee, "infos": []}  # Initialize infos as a ls
         for _, row in df.iloc[2:].iterrows():
             libelle = row.iloc[1]
             base_s = clean_value(row.iloc[2 + idx * 3])
             salarial = clean_value(row.iloc[3 + idx * 3])
             patronal = clean_value(row.iloc[4 + idx * 3])
 
-            employee_data[libelle] = {
-                "Libellé" : libelle,
+            # Append (libelle and related infos)
+            employee_data["infos"].append({
+                "Libellé": libelle,
                 "Base S.": base_s,
                 "Salarial": salarial,
                 "Patronal": patronal
-            }
+            })
         result.append(employee_data)
     result.pop()
     return result
