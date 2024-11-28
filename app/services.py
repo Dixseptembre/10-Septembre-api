@@ -13,7 +13,8 @@ def process_file(file):
 
     for idx, employee in enumerate(employees):
         employee_data = {"name": employee, "infos": []}
-
+        if not employee or "total" in str(employee).lower():
+            continue
         for _, row in df.iloc[2:].iterrows():
             libelle = row.iloc[1]  # Libellé
             base_s = clean_value(row.iloc[2 + idx * 3])  # Base S.
@@ -31,5 +32,5 @@ def process_file(file):
             if patronal != 0 and libelle not in result["libelle_patronal"] and _ < df.index[df.iloc[:, 1] == 'Total des retenues déductibles'].tolist()[0]:
                 result["libelle_patronal"].append(libelle)
         result["employees"].append(employee_data)
-    result["employees"].pop()
+
     return result
