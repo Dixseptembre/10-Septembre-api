@@ -3,6 +3,7 @@
 ## Types of files processed
 
 1. C-bis
+2. A
 
 ```json
 {
