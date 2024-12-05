@@ -1,21 +1,23 @@
 import pandas as pd
-from app.utils import clean_value
+from app.utils import clean_value, cbis_normalize, list_employees
 
 def process_file_cbis(file):
     # Charger le fichier
-    df = pd.read_excel(file, sheet_name=0, header=[2, 1])  # Lire avec un en-tête multi-niveau
+    df = pd.read_excel(file, sheet_name=0)  # Lire avec un en-tête multi-niveau
     if df.empty:
         raise ValueError("The file is empty or invalid format")
+    # Standardize data Frame
+    df = cbis_normalize(df)
 
     # Extraire les données
-    employees = df.iloc[0].dropna().unique().tolist()
+    employees = list_employees(df) # employees with Total if exist
     result = {"employees": [], "libelle_patronal": []}  # Ajouter libelle_patronal au niveau global
 
     for idx, employee in enumerate(employees):
         employee_data = {"name": employee, "infos": []}
         if not employee or "total" in str(employee).lower():
             continue
-        for _, row in df.iloc[2:].iterrows():
+        for _, row in df.iloc[0:].iterrows():
             libelle = row.iloc[1]  # Libellé
             base_s = clean_value(row.iloc[2 + idx * 3])  # Base S.
             salarial = clean_value(row.iloc[3 + idx * 3])  # Salarial
