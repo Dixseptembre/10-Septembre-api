@@ -1,5 +1,5 @@
 import pandas as pd
-from app.utils import clean_value, cbis_normalize, list_employees
+from app.utils import clean_value, cbis_normalize, list_employees, find_emmployee_name
 
 def process_file_cbis(file):
     # Charger le fichier
@@ -89,3 +89,51 @@ def process_file_A(file):
     result["employees"].append(employee_data)
 
     return result
+
+def process_file_B(file) :
+    # Charger le fichier
+    df = pd.read_excel(file, sheet_name=0)  # Lire avec un en-tête multi-niveau
+    if df.empty:
+        raise ValueError("The file is empty or invalid format")
+    # Retrieve title
+    title = df.columns[0]
+    employee = find_emmployee_name(title)
+
+    # Clean and standardize the column names for easier processing
+    df.columns = df.iloc[1]  # Use the second row as the header
+    df = df[2:]  # Drop the first two rows
+    df.reset_index(drop=True, inplace=True)
+
+    # Extract relevant columns for Libellé, Base S., Salarial, and Patronal
+    relevant_columns = ["Libellé", "Base S.", "Salarial", "Patronal"]
+    df_prime = df[relevant_columns]
+
+    # Init structure
+    result = {"employees": [], "libelle_patronal": []}
+    employee_data = {"name": employee, "infos": []}
+    result["employees"].append(employee_data)
+
+    for index, row in df_prime.iterrows():
+        libellé = row.iloc[0]  # Row name is in the first column
+        base_s = clean_value(row.iloc[df_prime.columns.get_loc('Base S.')])  # Base S.
+        salarial = clean_value(row.iloc[df_prime.columns.get_loc('Salarial')])  # Salarial
+        patronal = clean_value(row.iloc[df_prime.columns.get_loc('Patronal')])  # Patronal
+        
+        # Append the row data to the current row's infos
+        row_info = {
+            "Libellé": libellé,
+            "Base S.": base_s,
+            "Salarial": salarial,
+            "Patronal": patronal
+        }
+        employee_data["infos"].append(row_info)
+        # Ajouter le libellé à la liste globale si "patronal" est non nul
+        if patronal != 0 \
+            and libellé not in result["libelle_patronal"] \
+            and index < df.index[df.iloc[:, 1] == 'Total des retenues déductibles'].tolist()[0]:
+            result["libelle_patronal"].append(libellé)
+
+# Add to result
+    result["employees"].append(employee_data)
+    return result
+    

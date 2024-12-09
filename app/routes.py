@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, Flask
 import json
-from app.services import process_file_cbis, process_file_A
+from app.services import process_file_cbis, process_file_A, process_file_B
 
 main = Blueprint('main', __name__)
 
@@ -38,6 +38,27 @@ def process_A_endpoint():
 
         # Traitement du fichier
         result = process_file_A(file)
+        return Flask.response_class(
+            response=json.dumps({"success": True, "data": result}, ensure_ascii=False, indent=4),
+            status=200,
+            mimetype='application/json'
+        )
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+    
+@main.route('/process_B', methods=['POST'])
+def process_B_endpoint():
+    try:
+        if 'file' not in request.files:
+            return jsonify({"success": False, "error": "No file uploaded"}), 400
+
+        file = request.files['file']
+        if not file.filename.endswith('.xlsx') and not file.filename.endswith('.xlsm'):
+            return jsonify({"success": False, "error": "Invalid file format. Only .xlsx / .xlsm allowed"}), 400
+
+        # Traitement du fichier
+        result = process_file_B(file)
         return Flask.response_class(
             response=json.dumps({"success": True, "data": result}, ensure_ascii=False, indent=4),
             status=200,
