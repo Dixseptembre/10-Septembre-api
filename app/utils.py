@@ -26,3 +26,10 @@ def list_employees(df):
     employees = df.columns.dropna().tolist()
     employees = [col.strip() for col in employees if not col.strip().startswith("Unnamed")]
     return employees
+
+def find_emmployee_name(text):
+    first_dash = text.find("-")
+    second_dash = text.find("-", first_dash + 1)
+    return text[first_dash + 1:second_dash].strip() \
+        if (first_dash != -1 and second_dash != -1) \
+        else "Anonyme"
