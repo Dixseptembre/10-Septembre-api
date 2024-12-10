@@ -137,3 +137,30 @@ def process_file_B(file) :
     result["employees"].append(employee_data)
     return result
     
+
+def find_file_type(file):
+    try:
+        # Read the file
+        df = pd.read_excel(file, sheet_name=0)
+        
+        # Check if the DataFrame is empty
+        if df.empty:
+            raise ValueError("The file is empty or invalid format")
+        
+        # Initialize result dictionary
+        result = {}
+
+        # Determine the file type
+        if df.iloc[:, 0].astype(str).str.contains("Code", na=False).any():
+            if df.iloc[:, 2].astype(str).str.contains("Nb Salariés", na=False).any():
+                result["type"] = "B"
+            elif df.iloc[:, 2].astype(str).str.contains("Base S.", na=False).any():
+                result["type"] = "Cbis"
+        elif df.iloc[:, 0].astype(str).str.contains("Libellé rubrique", na=False).any():
+            result["type"] = "A"
+        else:
+            result["type"] = "not recognized"
+        
+        return result
+    except Exception as e:
+        return {"error": str(e)}

@@ -1,8 +1,29 @@
 from flask import Blueprint, request, jsonify, Flask
 import json
-from app.services import process_file_cbis, process_file_A, process_file_B
+from app.services import process_file_cbis, process_file_A, \
+    process_file_B, find_file_type
 
 main = Blueprint('main', __name__)
+
+@main.route('/excel_type', methods=['POST'])
+def find_type_endpoint():
+    # Check if the file is part of the request
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part in the request"}), 400
+    
+    file = request.files['file']
+
+    # Check if the file has a valid filename
+    if file.filename == '':
+        return jsonify({"error": "No selected file"}), 400
+
+    try:
+        # Call the find_file_type function and pass the file
+        result = find_file_type(file)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 @main.route('/process_cbis', methods=['POST'])
 def process_cbis_endpoint():
