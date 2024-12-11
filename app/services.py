@@ -111,7 +111,6 @@ def process_file_B(file) :
     # Init structure
     result = {"employees": [], "libelle_patronal": []}
     employee_data = {"name": employee, "infos": []}
-    result["employees"].append(employee_data)
 
     for index, row in df_prime.iterrows():
         libellé = row.iloc[0]  # Row name is in the first column
