@@ -5,6 +5,40 @@ from app.services import process_file_cbis, process_file_A, \
 
 main = Blueprint('main', __name__)
 
+# Route to manage all types at once
+@main.route('/extraction', methods=['POST'])
+def extract_information_endpoint():
+    try:
+        if 'file' not in request.files:
+            return jsonify({"success": False, "error": "No file uploaded"}), 400
+
+        file = request.files['file']
+        if not file.filename.endswith('.xlsx') and not file.filename.endswith('.xlsm'):
+            return jsonify({"success": False, "error": "Invalid file format. Only .xlsx /.xlsm allowed"}), 400
+
+        # Check type
+        # Call the find_file_type function and pass the file
+        j_type = find_file_type(file)
+        type = j_type['type']
+        match type:
+            case "A":
+                result = process_file_A(file)
+            case "B":
+                result = process_file_B(file)
+            case "Cbis":
+                result = process_file_cbis(file)
+            case _:
+                return jsonify({"error": "File "+type}), 400
+        # success : True
+        return Flask.response_class(
+            response=json.dumps({"success": True, "data": result}, ensure_ascii=False, indent=4),
+            status=200,
+            mimetype='application/json'
+        )
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
 @main.route('/excel_type', methods=['POST'])
 def find_type_endpoint():
     # Check if the file is part of the request
