@@ -19,6 +19,7 @@ def process_file_cbis(file):
             continue
         for _, row in df.iloc[0:].iterrows():
             libelle = row.iloc[1]  # Libellé
+            if pd.isna(libelle): continue
             base_s = clean_value(row.iloc[2 + idx * 3])  # Base S.
             salarial = clean_value(row.iloc[3 + idx * 3])  # Salarial
             patronal = clean_value(row.iloc[4 + idx * 3])  # Patronal
