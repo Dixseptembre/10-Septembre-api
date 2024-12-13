@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify, Flask
 import json
 from app.services import process_file_cbis, process_file_A, \
-    process_file_B, find_file_type
+    process_file_B, process_file_D, find_file_type
 
 main = Blueprint('main', __name__)
 
@@ -27,6 +27,8 @@ def extract_information_endpoint():
                 result = process_file_B(file)
             case "Cbis":
                 result = process_file_cbis(file)
+            case "D":
+                result = process_file_D(file)
             case _:
                 return jsonify({"error": "File "+type}), 400
         # success : True

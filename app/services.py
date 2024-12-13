@@ -133,10 +133,56 @@ def process_file_B(file) :
             and index < df.index[df.iloc[:, 1] == 'Total des retenues déductibles'].tolist()[0]:
             result["libelle_patronal"].append(libellé)
 
-# Add to result
+    # Add to result
     result["employees"].append(employee_data)
     return result
     
+def process_file_D(file):
+    # Charger le fichier
+    df = pd.read_excel(file, sheet_name=0)  # Lire avec un en-tête multi-niveau
+    if df.empty:
+        raise ValueError("The file is empty or invalid format")
+    
+    # drop unwanted columns
+    df = df.iloc[:, 2:]
+    if "Mois de fin" in df.iloc[:, 0].values : # in case Moid de fin / année de fin
+        df = df.iloc[:, 2:]
+    
+    # Retrieve employees
+    employees = list_employees(df)
+
+    # Clean data
+    df = df.rename(columns=df.iloc[0])
+    df = df.drop(['Effectif', 'Taux', 'Total des taux', 'Montant total'], axis=1)
+    df = df.iloc[1:]
+
+    # Aggregate rows with the same value in the third column ("Libellé")
+    df_grouped = df.groupby('Libellé', sort=False).sum().reset_index()
+
+    result = {"employees": [], "libelle_patronal": []}  # Ajouter libelle_patronal au niveau global
+    for idx, employee in enumerate(employees):
+        employee_data = {"name": employee, "infos": []}
+        if not employee : continue
+        for _, row in df_grouped.iterrows():
+            libellé = row.iloc[0]
+            base_s = clean_value(row.iloc[1 + idx * 3])
+            salarial = clean_value(row.iloc[2 + idx * 3])
+            patronal = clean_value(row.iloc[3 + idx * 3])
+            # Append (libelle and related infos)
+            employee_data["infos"].append({
+                "Libellé": libellé,
+                "Base S.": base_s,
+                "Salarial": salarial,
+                "Patronal": patronal
+            })
+            if patronal != 0 and \
+                libellé not in result["libelle_patronal"] and \
+                not libellé.startswith('Sous-total') and \
+                not libellé.startswith('TOTAL') :
+                result["libelle_patronal"].append(libellé)
+        result["employees"].append(employee_data)
+    result['employees'].pop(0)
+    return result
 
 def find_file_type(file):
     try:
@@ -158,9 +204,12 @@ def find_file_type(file):
                 result["type"] = "Cbis"
         elif df.iloc[:, 0].astype(str).str.contains("Libellé rubrique", na=False).any():
             result["type"] = "A"
+        elif df.iloc[:, 0].astype(str).str.contains("Mois", na=False).any():
+            result["type"] = "D"
         else:
             result["type"] = "not recognized"
         
         return result
     except Exception as e:
         return {"error": str(e)}
+    
