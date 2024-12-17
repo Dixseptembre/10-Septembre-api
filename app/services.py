@@ -154,6 +154,8 @@ def process_file_D(file):
     # Clean data
     df = df.rename(columns=df.iloc[0])
     df = df.drop(['Effectif', 'Taux', 'Total des taux', 'Montant total'], axis=1)
+    if 'Non obligatoire' in df.columns:
+        df = df.drop('Non obligatoire', axis=1)
     df = df.iloc[1:]
 
     # Aggregate rows with the same value in the third column ("Libellé")
