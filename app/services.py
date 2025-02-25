@@ -65,7 +65,7 @@ def process_file_A(file):
             continue # Skip because New
 
         # Data for the current employee
-        if employee_data:
+        if employee_data and type(row.iloc[0]) is str:
             row_name = row.iloc[0]  # Row name is in the first column
             base_s = clean_value(row.iloc[df.columns.get_loc('Base ou Nombre')])  # Base S.
             salarial = clean_value(row.iloc[df.columns.get_loc('Part Salariale Gains')])  # Salarial
