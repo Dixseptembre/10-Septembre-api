@@ -92,7 +92,7 @@ def convert_to_utf8_endpoint():
         # Create a temporary file to save the converted CSV
         with tempfile.NamedTemporaryFile(delete=False, mode='w', newline='', encoding='utf-8-sig') as tmpfile:
             output_filename = tmpfile.name
-            df.to_csv(output_filename, index=False, lineterminator='\n')
+            df.to_csv(output_filename, index=False, encoding='utf-8-sig', lineterminator='\n')
         
         # Send the file as a response
         response = send_file(output_filename, as_attachment=True)
