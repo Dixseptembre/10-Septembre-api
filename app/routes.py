@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify, Flask, send_file
-import json
+import json, os
 import pandas as pd
+import tempfile
 from app.services import process_file_cbis, process_file_A, \
     process_file_B, process_file_D, find_file_type
 
@@ -88,14 +89,19 @@ def convert_to_utf8_endpoint():
         # Clean column names to remove special characters and whitespace
         df.columns = df.columns.str.strip().str.encode('utf-8', 'ignore').str.decode('utf-8')
         
-        # Save as UTF-8-sig to ensure proper encoding for Excel
-        output_filename = "converted_utf8.csv"
-        df.to_csv(output_filename, index=False, encoding='utf-8-sig', lineterminator='\n')
+        # Create a temporary file to save the converted CSV
+        with tempfile.NamedTemporaryFile(delete=False, mode='w', newline='', encoding='utf-8-sig') as tmpfile:
+            output_filename = tmpfile.name
+            df.to_csv(output_filename, index=False, lineterminator='\n')
         
-        # Send file to Bubble app via response
+        # Send the file as a response
         response = send_file(output_filename, as_attachment=True)
-        response.headers['Content-Disposition'] = f'attachment; filename={output_filename}'
+        response.headers['Content-Disposition'] = f'attachment; filename={os.path.basename(output_filename)}'
         response.headers['Content-Type'] = 'text/csv; charset=utf-8'
+        
+        # Optionally, remove the temporary file after sending it (depends on your use case)
+        os.remove(output_filename)
+        
         return response
     except Exception as e:
         return jsonify({"error": str(e)}), 500
