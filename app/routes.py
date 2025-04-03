@@ -96,7 +96,7 @@ def convert_to_utf8_endpoint():
         
         # Send the file as a response
         response = send_file(output_filename, as_attachment=True)
-        response.headers['Content-Disposition'] = f'attachment; filename={os.path.basename(output_filename)}'
+        response.headers['Content-Disposition'] = f'attachment; filename={os.path.basename(file.filename)}'
         response.headers['Content-Type'] = 'text/csv; charset=utf-8'
         
         # Optionally, remove the temporary file after sending it (depends on your use case)
