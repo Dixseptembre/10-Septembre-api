@@ -1,189 +1,232 @@
 import pandas as pd
-from app.utils import clean_value, cbis_normalize, list_employees, find_emmployee_name
+from app.utils import clean_value, c_normalize, list_employees, find_emmployee_name
 
-def process_file_cbis(file):
-    # Charger le fichier
-    df = pd.read_excel(file, sheet_name=0)  # Lire avec un en-tête multi-niveau
-    if df.empty:
+def process_file_A(file):
+    # Charger le fichier avec toutes les feuilles
+    all_sheets = pd.read_excel(file, sheet_name=None, header=[2, 1])  # Lire toutes les feuilles dans un dictionnaire
+
+    if not all_sheets:
         raise ValueError("The file is empty or invalid format")
-    # Standardize data Frame
-    df = cbis_normalize(df)
 
-    # Extraire les données
-    employees = list_employees(df) # employees with Total if exist
     result = {"employees": [], "libelle_patronal": []}  # Ajouter libelle_patronal au niveau global
 
-    for idx, employee in enumerate(employees):
-        employee_data = {"name": employee, "infos": []}
-        if not employee or "total" in str(employee).lower():
-            continue
-        for _, row in df.iloc[0:].iterrows():
-            libelle = row.iloc[1]  # Libellé
-            if pd.isna(libelle): continue
-            base_s = clean_value(row.iloc[2 + idx * 3])  # Base S.
-            salarial = clean_value(row.iloc[3 + idx * 3])  # Salarial
-            patronal = clean_value(row.iloc[4 + idx * 3])  # Patronal
+    # Parcourir chaque feuille
+    for sheet_name, df in all_sheets.items():
+        if df.empty:
+            continue  # Ignorer les feuilles vides
 
-            # Append (libelle and related infos)
-            employee_data["infos"].append({
-                "Libellé": libelle,
-                "Base S.": base_s,
-                "Salarial": salarial,
-                "Patronal": patronal
-            })
-            # Ajouter le libellé à la liste globale si "patronal" est non nul
-            if patronal != 0 and libelle not in result["libelle_patronal"] and _ < df.index[df.iloc[:, 1] == 'Total des retenues déductibles'].tolist()[0]:
-                result["libelle_patronal"].append(libelle)
-        result["employees"].append(employee_data)
+        df = df.iloc[1:]  # Skip the first row if needed
+        df.columns = df.columns.get_level_values(1)  # Flatten multi-level columns
+
+        # Initialiser la structure pour les employés
+        employee_data = {}
+
+        # Boucle à travers les lignes et traitement des données des employés
+        for index, row in df.iterrows():
+            # Détecter un nouvel employé basé sur la première colonne
+            if pd.notna(row.iloc[0]) and isinstance(row.iloc[0], (int, float)):
+                # Si un employé existe déjà, l'ajouter au résultat
+                if employee_data:
+                    result["employees"].append(employee_data)
+                    employee_data = {}  # Réinitialiser pour le nouvel employé
+
+                # Démarrer un nouvel enregistrement d'employé
+                employee_name = row.iloc[1]  # Le nom de l'employé est dans la deuxième colonne
+                employee_data = {"name": employee_name, "infos": []}
+                continue  # Passer à la ligne suivante (nouvel employé)
+
+            # Traitement des données pour l'employé actuel
+            if employee_data and isinstance(row.iloc[0], str):
+                row_name = row.iloc[0]  # Le nom de la ligne est dans la première colonne
+                base_s = clean_value(row.iloc[df.columns.get_loc('Base ou Nombre')])  # Base S.
+                salarial = clean_value(row.iloc[df.columns.get_loc('Part Salariale Gains')])  # Salarial
+                patronal = clean_value(row.iloc[df.columns.get_loc('Part Patronale Retenues')])  # Patronal
+
+                # Ajouter les informations de la ligne aux informations de l'employé
+                row_info = {
+                    "Libellé": row_name,
+                    "Base S.": base_s,
+                    "Salarial": salarial,
+                    "Patronal": patronal
+                }
+                employee_data["infos"].append(row_info)
+
+                # Ajouter le libellé à la liste globale
+                if patronal != 0 and row_name not in result["libelle_patronal"] \
+                    and not row_name[0].isdigit() \
+                        and index < df.index[df.iloc[:, 0] == '50_COTIS_DEDUCTIBLE'].tolist()[0]:
+                    result["libelle_patronal"].append(row_name)
+
+        # Ajouter l'employé final du fichier
+        if employee_data:
+            result["employees"].append(employee_data)
 
     return result
 
-def process_file_A(file):
-    # Load with appropriate header levels
-    df = pd.read_excel(file, sheet_name=0, header=[2, 1])  # Assuming a simple single-level header
-    if df.empty:
+def process_file_B(file):
+    # Charger le fichier avec toutes les feuilles
+    all_sheets = pd.read_excel(file, sheet_name=None)  # Lire toutes les feuilles dans un dictionnaire
+
+    if not all_sheets:
         raise ValueError("The file is empty or invalid format")
-    df = df.iloc[1:]
-    df.columns = df.columns.get_level_values(1)
-    # Init the structure
-    result = {"employees": [], "libelle_patronal": []}
-    
-    # Loop through the rows and process each employee's data
-    employee_data = {}
-    
-    for index, row in df.iterrows():
-        # Detect new employee based on the first column
-        if pd.notna(row.iloc[0]) and isinstance(row.iloc[0], (int, float)):
-            # If there's an existing employee, add them to the result
-            if employee_data:
-                result["employees"].append(employee_data)
-                employee_data = {}  # Reset for the new employee
-            
-            # Start a new employee record
-            employee_name = row.iloc[1]  # Employee name is in the second column
-            employee_data = {"name": employee_name, "infos": []}
-            continue # Skip because New
 
-        # Data for the current employee
-        if employee_data and type(row.iloc[0]) is str:
-            row_name = row.iloc[0]  # Row name is in the first column
-            base_s = clean_value(row.iloc[df.columns.get_loc('Base ou Nombre')])  # Base S.
-            salarial = clean_value(row.iloc[df.columns.get_loc('Part Salariale Gains')])  # Salarial
-            patronal = clean_value(row.iloc[df.columns.get_loc('Part Patronale Retenues')])  # Patronal
+    result = {"employees": [], "libelle_patronal": []}  # Ajouter libelle_patronal au niveau global
 
-            # Append the row data to the current employee's infos
+    # Parcourir chaque feuille
+    for sheet_name, df in all_sheets.items():
+        if df.empty:
+            continue  # Ignorer les feuilles vides
+
+        # Récupérer le titre de la feuille et le nom de l'employé
+        title = df.columns[0]
+        employee = find_emmployee_name(title)
+
+        # Nettoyer et standardiser les noms de colonnes pour faciliter le traitement
+        df.columns = df.iloc[1]  # Utiliser la deuxième ligne comme en-tête
+        df = df[2:]  # Supprimer les deux premières lignes
+        df.reset_index(drop=True, inplace=True)
+
+        # Extraire les colonnes pertinentes pour Libellé, Base S., Salarial et Patronal
+        relevant_columns = ["Libellé", "Base S.", "Salarial", "Patronal"]
+        df_prime = df[relevant_columns]
+
+        # Initialiser la structure des employés
+        employee_data = {"name": employee, "infos": []}
+
+        # Boucle à travers les lignes et traitement des données des employés
+        for index, row in df_prime.iterrows():
+            libellé = row.iloc[0]  # Le nom de la ligne est dans la première colonne
+            base_s = clean_value(row.iloc[df_prime.columns.get_loc('Base S.')])  # Base S.
+            salarial = clean_value(row.iloc[df_prime.columns.get_loc('Salarial')])  # Salarial
+            patronal = clean_value(row.iloc[df_prime.columns.get_loc('Patronal')])  # Patronal
+
+            # Ajouter les informations de la ligne aux infos de l'employé
             row_info = {
-                "Libellé": row_name,
+                "Libellé": libellé,
                 "Base S.": base_s,
                 "Salarial": salarial,
                 "Patronal": patronal
             }
             employee_data["infos"].append(row_info)
 
-            # Add libellé
-            if patronal != 0 and row_name not in result["libelle_patronal"] \
-                and not row_name[0].isdigit() \
-                    and index < df.index[df.iloc[:, 0] == '50_COTIS_DEDUCTIBLE'].tolist()[0]:
-                result["libelle_patronal"].append(row_name)
-    
-    # Add the final employee
-    result["employees"].append(employee_data)
+            # Ajouter le libellé à la liste globale si "patronal" est non nul
+            if patronal != 0 \
+                and libellé not in result["libelle_patronal"] \
+                and index < df.index[df.iloc[:, 1] == 'Total des retenues déductibles'].tolist()[0]:
+                result["libelle_patronal"].append(libellé)
+
+        # Ajouter l'employé au résultat
+        result["employees"].append(employee_data)
 
     return result
 
-def process_file_B(file) :
-    # Charger le fichier
-    df = pd.read_excel(file, sheet_name=0)  # Lire avec un en-tête multi-niveau
-    if df.empty:
+def process_file_C(file):
+    # Charger le fichier avec toutes les feuilles
+    all_sheets = pd.read_excel(file, sheet_name=None)  # Lire toutes les feuilles dans un dictionnaire
+
+    if not all_sheets:
         raise ValueError("The file is empty or invalid format")
-    # Retrieve title
-    title = df.columns[0]
-    employee = find_emmployee_name(title)
 
-    # Clean and standardize the column names for easier processing
-    df.columns = df.iloc[1]  # Use the second row as the header
-    df = df[2:]  # Drop the first two rows
-    df.reset_index(drop=True, inplace=True)
+    result = {"employees": [], "libelle_patronal": []}  # Ajouter libelle_patronal au niveau global
 
-    # Extract relevant columns for Libellé, Base S., Salarial, and Patronal
-    relevant_columns = ["Libellé", "Base S.", "Salarial", "Patronal"]
-    df_prime = df[relevant_columns]
+    # Parcourir chaque feuille
+    for sheet_name, df in all_sheets.items():
+        if df.empty:
+            continue  # Ignorer les feuilles vides
 
-    # Init structure
-    result = {"employees": [], "libelle_patronal": []}
-    employee_data = {"name": employee, "infos": []}
+        # Standardiser le DataFrame
+        df = c_normalize(df)
 
-    for index, row in df_prime.iterrows():
-        libellé = row.iloc[0]  # Row name is in the first column
-        base_s = clean_value(row.iloc[df_prime.columns.get_loc('Base S.')])  # Base S.
-        salarial = clean_value(row.iloc[df_prime.columns.get_loc('Salarial')])  # Salarial
-        patronal = clean_value(row.iloc[df_prime.columns.get_loc('Patronal')])  # Patronal
-        
-        # Append the row data to the current row's infos
-        row_info = {
-            "Libellé": libellé,
-            "Base S.": base_s,
-            "Salarial": salarial,
-            "Patronal": patronal
-        }
-        employee_data["infos"].append(row_info)
-        # Ajouter le libellé à la liste globale si "patronal" est non nul
-        if patronal != 0 \
-            and libellé not in result["libelle_patronal"] \
-            and index < df.index[df.iloc[:, 1] == 'Total des retenues déductibles'].tolist()[0]:
-            result["libelle_patronal"].append(libellé)
+        # Extraire les données pour chaque feuille
+        employees = list_employees(df)  # employees with Total if exist
 
-    # Add to result
-    result["employees"].append(employee_data)
+        for idx, employee in enumerate(employees):
+            employee_data = {"name": employee, "infos": []}
+            if not employee or "total" in str(employee).lower():
+                continue
+            for _, row in df.iloc[0:].iterrows():
+                libelle = row.iloc[1]  # Libellé
+                if pd.isna(libelle):
+                    continue
+                base_s = clean_value(row.iloc[2 + idx * 3])  # Base S.
+                salarial = clean_value(row.iloc[3 + idx * 3])  # Salarial
+                patronal = clean_value(row.iloc[4 + idx * 3])  # Patronal
+
+                # Append (libelle and related infos)
+                employee_data["infos"].append({
+                    "Libellé": libelle,
+                    "Base S.": base_s,
+                    "Salarial": salarial,
+                    "Patronal": patronal
+                })
+                # Ajouter le libellé à la liste globale si "patronal" est non nul
+                if patronal != 0 and libelle not in result["libelle_patronal"] and _ < df.index[df.iloc[:, 1] == 'Total des retenues déductibles'].tolist()[0]:
+                    result["libelle_patronal"].append(libelle)
+            result["employees"].append(employee_data)
+
     return result
     
 def process_file_D(file):
-    # Charger le fichier
-    df = pd.read_excel(file, sheet_name=0)  # Lire avec un en-tête multi-niveau
-    if df.empty:
+    # Charger le fichier avec toutes les feuilles
+    all_sheets = pd.read_excel(file, sheet_name=None)  # Lire toutes les feuilles dans un dictionnaire
+
+    if not all_sheets:
         raise ValueError("The file is empty or invalid format")
-    
-    # drop unwanted columns
-    df = df.iloc[:, 2:]
-    if "Mois de fin" in df.iloc[:, 0].values : # in case Moid de fin / année de fin
-        df = df.iloc[:, 2:]
-    
-    # Retrieve employees
-    employees = list_employees(df)
-
-    # Clean data
-    df = df.rename(columns=df.iloc[0])
-    df = df.drop(['Effectif', 'Taux', 'Total des taux', 'Montant total'], axis=1)
-    if 'Non obligatoire' in df.columns:
-        df = df.drop('Non obligatoire', axis=1)
-    df = df.iloc[1:]
-
-    # Aggregate rows with the same value in the third column ("Libellé")
-    df_grouped = df.groupby('Libellé', sort=False).sum().reset_index()
 
     result = {"employees": [], "libelle_patronal": []}  # Ajouter libelle_patronal au niveau global
-    for idx, employee in enumerate(employees):
-        employee_data = {"name": employee, "infos": []}
-        if not employee : continue
-        for _, row in df_grouped.iterrows():
-            libellé = row.iloc[0]
-            base_s = clean_value(row.iloc[1 + idx * 3])
-            salarial = clean_value(row.iloc[2 + idx * 3])
-            patronal = clean_value(row.iloc[3 + idx * 3])
-            # Append (libelle and related infos)
-            employee_data["infos"].append({
-                "Libellé": libellé,
-                "Base S.": base_s,
-                "Salarial": salarial,
-                "Patronal": patronal
-            })
-            if patronal != 0 and \
-                libellé not in result["libelle_patronal"] and \
-                not libellé.startswith('Sous-total') and \
-                not libellé.startswith('TOTAL') :
-                result["libelle_patronal"].append(libellé)
-        result["employees"].append(employee_data)
-    result['employees'].pop(0)
+
+    # Parcourir chaque feuille
+    for sheet_name, df in all_sheets.items():
+        if df.empty:
+            continue  # Ignorer les feuilles vides
+
+        # Nettoyer les colonnes inutiles
+        df = df.iloc[:, 2:]
+        if "Mois de fin" in df.iloc[:, 0].values:  # Cas avec Mois de fin / année de fin
+            df = df.iloc[:, 2:]
+
+        # Récupérer les employés
+        employees = list_employees(df)
+
+        # Nettoyer les données
+        df = df.rename(columns=df.iloc[0])
+        df = df.drop(['Effectif', 'Taux', 'Total des taux', 'Montant total'], axis=1)
+        if 'Non obligatoire' in df.columns:
+            df = df.drop('Non obligatoire', axis=1)
+        df = df.iloc[1:]
+
+        # Grouper les lignes avec la même valeur dans la troisième colonne ("Libellé")
+        df_grouped = df.groupby('Libellé', sort=False).sum().reset_index()
+
+        # Traiter les employés
+        for idx, employee in enumerate(employees):
+            employee_data = {"name": employee, "infos": []}
+            if not employee or employee=='TOTAL':
+                continue  # Ignorer si l'employé est vide
+
+            for _, row in df_grouped.iterrows():
+                libellé = row.iloc[0]
+                base_s = clean_value(row.iloc[1 + idx * 3])
+                salarial = clean_value(row.iloc[2 + idx * 3])
+                patronal = clean_value(row.iloc[3 + idx * 3])
+
+                # Ajouter les informations de la ligne aux informations de l'employé
+                employee_data["infos"].append({
+                    "Libellé": libellé,
+                    "Base S.": base_s,
+                    "Salarial": salarial,
+                    "Patronal": patronal
+                })
+
+                # Ajouter le libellé à la liste globale si "patronal" est non nul
+                if patronal != 0 and \
+                    libellé not in result["libelle_patronal"] and \
+                    not libellé.startswith('Sous-total') and \
+                    not libellé.startswith('TOTAL'):
+                    result["libelle_patronal"].append(libellé)
+
+            result["employees"].append(employee_data)
+
     return result
 
 def find_file_type(file):
@@ -203,7 +246,7 @@ def find_file_type(file):
             if df.iloc[:, 2].astype(str).str.contains("Nb Salariés", na=False).any():
                 result["type"] = "B"
             elif df.iloc[:, 2].astype(str).str.contains("Base S.", na=False).any():
-                result["type"] = "Cbis"
+                result["type"] = "C"
         elif df.iloc[:, 0].astype(str).str.contains("Libellé rubrique", na=False).any():
             result["type"] = "A"
         elif df.iloc[:, 0].astype(str).str.contains("Mois", na=False).any():
@@ -214,4 +257,3 @@ def find_file_type(file):
         return result
     except Exception as e:
         return {"error": str(e)}
-    
