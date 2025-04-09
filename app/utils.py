@@ -5,7 +5,7 @@ def clean_value(value):
     """
     return float(value) if value==value else 0
 
-def cbis_normalize(df):
+def c_normalize(df):
     """
     Try to increase population of C bis
     1) Normal

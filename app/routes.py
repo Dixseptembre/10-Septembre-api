@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify, Flask, send_file
 import json, os
 import pandas as pd
 import tempfile
-from app.services import process_file_cbis, process_file_A, \
+from app.services import process_file_C, process_file_A, \
     process_file_B, process_file_D, find_file_type
 
 main = Blueprint('main', __name__)
@@ -22,13 +22,14 @@ def extract_information_endpoint():
         # Call the find_file_type function and pass the file
         j_type = find_file_type(file)
         type = j_type['type']
+        print("Type : ", type)
         match type:
             case "A":
                 result = process_file_A(file)
             case "B":
                 result = process_file_B(file)
-            case "Cbis":
-                result = process_file_cbis(file)
+            case "C":
+                result = process_file_C(file)
             case "D":
                 result = process_file_D(file)
             case _:
