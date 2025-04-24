@@ -2,47 +2,47 @@ import pandas as pd
 from app.utils import clean_value, c_normalize, list_employees, find_emmployee_name
 
 def process_file_A(file):
-    # Charger le fichier avec toutes les feuilles
-    all_sheets = pd.read_excel(file, sheet_name=None, header=[2, 1])  # Lire toutes les feuilles dans un dictionnaire
+    # Load all sheets without header
+    all_sheets = pd.read_excel(file, sheet_name=None, header=None)
 
     if not all_sheets:
         raise ValueError("The file is empty or invalid format")
 
-    result = {"employees": [], "libelle_patronal": []}  # Ajouter libelle_patronal au niveau global
+    result = {"employees": [], "libelle_patronal": []}
 
-    # Parcourir chaque feuille
     for sheet_name, df in all_sheets.items():
         if df.empty:
-            continue  # Ignorer les feuilles vides
+            continue
 
-        df = df.iloc[1:]  # Skip the first row if needed
-        df.columns = df.columns.get_level_values(1)  # Flatten multi-level columns
+        # Check if any value in the first column contains "Libellé rubrique"
+        if not df.iloc[:, 0].astype(str).str.contains("Libellé rubrique", na=False).any():
+            continue
+        
+        # Set header manually 
+        df.columns = df.iloc[2]
+        df = df.iloc[3:].reset_index(drop=True)
 
-        # Initialiser la structure pour les employés
         employee_data = {}
 
-        # Boucle à travers les lignes et traitement des données des employés
         for index, row in df.iterrows():
-            # Détecter un nouvel employé basé sur la première colonne
             if pd.notna(row.iloc[0]) and isinstance(row.iloc[0], (int, float)):
-                # Si un employé existe déjà, l'ajouter au résultat
                 if employee_data:
                     result["employees"].append(employee_data)
-                    employee_data = {}  # Réinitialiser pour le nouvel employé
+                    employee_data = {}
 
-                # Démarrer un nouvel enregistrement d'employé
-                employee_name = row.iloc[1]  # Le nom de l'employé est dans la deuxième colonne
+                employee_name = row.iloc[1]
                 employee_data = {"name": employee_name, "infos": []}
-                continue  # Passer à la ligne suivante (nouvel employé)
+                continue
 
-            # Traitement des données pour l'employé actuel
             if employee_data and isinstance(row.iloc[0], str):
-                row_name = row.iloc[0]  # Le nom de la ligne est dans la première colonne
-                base_s = clean_value(row.iloc[df.columns.get_loc('Base ou Nombre')])  # Base S.
-                salarial = clean_value(row.iloc[df.columns.get_loc('Part Salariale Gains')])  # Salarial
-                patronal = clean_value(row.iloc[df.columns.get_loc('Part Patronale Retenues')])  # Patronal
+                row_name = row.iloc[0]
+                try:
+                    base_s = clean_value(row.iloc[df.columns.get_loc('Base ou Nombre')])
+                    salarial = clean_value(row.iloc[df.columns.get_loc('Part Salariale Gains')])
+                    patronal = clean_value(row.iloc[df.columns.get_loc('Part Patronale Retenues')])
+                except KeyError:
+                    continue
 
-                # Ajouter les informations de la ligne aux informations de l'employé
                 row_info = {
                     "Libellé": row_name,
                     "Base S.": base_s,
@@ -51,13 +51,15 @@ def process_file_A(file):
                 }
                 employee_data["infos"].append(row_info)
 
-                # Ajouter le libellé à la liste globale
-                if patronal != 0 and row_name not in result["libelle_patronal"] \
-                    and not row_name[0].isdigit() \
-                        and index < df.index[df.iloc[:, 0] == '50_COTIS_DEDUCTIBLE'].tolist()[0]:
+                if (
+                    patronal != 0
+                    and row_name not in result["libelle_patronal"]
+                    and not row_name[0].isdigit()
+                    and '50_COTIS_DEDUCTIBLE' in df.iloc[:, 0].values
+                    and index < df.index[df.iloc[:, 0] == '50_COTIS_DEDUCTIBLE'].tolist()[0]
+                ):
                     result["libelle_patronal"].append(row_name)
 
-        # Ajouter l'employé final du fichier
         if employee_data:
             result["employees"].append(employee_data)
 
@@ -180,6 +182,10 @@ def process_file_D(file):
         if df.empty:
             continue  # Ignorer les feuilles vides
 
+        # Check if any value in the first column contains "Mois"
+        if not df.iloc[:, 0].astype(str).str.contains("Mois", na=False).any():
+            continue
+
         # Nettoyer les colonnes inutiles
         df = df.iloc[:, 2:]
         if "Mois de fin" in df.iloc[:, 0].values:  # Cas avec Mois de fin / année de fin
@@ -231,29 +237,39 @@ def process_file_D(file):
 
 def find_file_type(file):
     try:
-        # Read the file
-        df = pd.read_excel(file, sheet_name=0)
-        
-        # Check if the DataFrame is empty
-        if df.empty:
-            raise ValueError("The file is empty or invalid format")
-        
+        # Read all sheets into a dictionary
+        sheets = pd.read_excel(file, sheet_name=None)
+
         # Initialize result dictionary
         result = {}
 
-        # Determine the file type
-        if df.iloc[:, 0].astype(str).str.contains("Code", na=False).any():
-            if df.iloc[:, 2].astype(str).str.contains("Nb Salariés", na=False).any():
-                result["type"] = "B"
-            elif df.iloc[:, 2].astype(str).str.contains("Base S.", na=False).any():
-                result["type"] = "C"
-        elif df.iloc[:, 0].astype(str).str.contains("Libellé rubrique", na=False).any():
-            result["type"] = "A"
-        elif df.iloc[:, 0].astype(str).str.contains("Mois", na=False).any():
-            result["type"] = "D"
-        else:
-            result["type"] = "not recognized"
-        
+        # Iterate through each sheet
+        for df in sheets.values():
+            # Skip empty sheets
+            if df.empty:
+                continue
+
+            # Prevent indexing errors by checking number of columns
+            if df.shape[1] > 2:
+                if df.iloc[:, 0].astype(str).str.contains("Code", na=False).any():
+                    if df.iloc[:, 2].astype(str).str.contains("Nb Salariés", na=False).any():
+                        result["type"] = "B"
+                        return result
+                    elif df.iloc[:, 2].astype(str).str.contains("Base S.", na=False).any():
+                        result["type"] = "C"
+                        return result
+
+            if df.shape[1] > 0:
+                if df.iloc[:, 0].astype(str).str.contains("Libellé rubrique", na=False).any():
+                    result["type"] = "A"
+                    return result
+                if df.iloc[:, 0].astype(str).str.contains("Mois", na=False).any():
+                    result["type"] = "D"
+                    return result
+
+        # If no pattern matches
+        result["type"] = "not recognized"
         return result
+
     except Exception as e:
         return {"error": str(e)}
