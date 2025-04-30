@@ -1,9 +1,14 @@
 def clean_value(value):
     """
-    NaN -> 0
-    float others
+    Converts a value to float if possible.
+    Returns 0 if the value is NaN or not convertible to float.
     """
-    return float(value) if value==value else 0
+    try:
+        if value != value:  # NaN check
+            return 0
+        return float(value)
+    except (ValueError, TypeError):
+        return 0
 
 def c_normalize(df):
     """

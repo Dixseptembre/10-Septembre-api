@@ -3,7 +3,7 @@ import json, os
 import pandas as pd
 import tempfile
 from app.services import process_file_C, process_file_A, \
-    process_file_B, process_file_D, find_file_type
+    process_file_B, process_file_D, proceess_file_E, find_file_type
 
 main = Blueprint('main', __name__)
 
@@ -32,6 +32,8 @@ def extract_information_endpoint():
                 result = process_file_C(file)
             case "D":
                 result = process_file_D(file)
+            case "E":
+                result = proceess_file_E(file)
             case _:
                 return jsonify({"error": "File "+type}), 400
         # success : True
