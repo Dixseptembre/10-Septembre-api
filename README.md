@@ -2,10 +2,11 @@
 
 ## Types of files processed
 
-1. C-bis
-2. A
-3. B
+1. A
+2. B
+3. C
 4. D
+5. E
 
 ```json
 {
